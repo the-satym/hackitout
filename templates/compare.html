@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Climate Explorer — Compare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ── TOKENS ──────────────────────────────────────────────── */
+:root{
+  --bg:#03080f;--surface:#080f1a;--panel:#0b1422;
+  --border:rgba(0,200,255,0.13);--accent:#00c8ff;
+  --accent2:#00ff99;--accent3:#ff4d6d;--accent4:#ffb700;
+  --text:#d6eaf8;--muted:#4a6a82;
+  --fd:'Syne',sans-serif;--fm:'Space Mono',monospace;--r:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--fd);min-height:100vh;overflow-x:hidden;animation:fadeIn .35s ease}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(0,200,255,0.07) 0%,transparent 70%),
+             radial-gradient(ellipse 60% 40% at 90% 80%,rgba(0,255,153,0.05) 0%,transparent 60%)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ── HEADER ──────────────────────────────────────────────── */
+header{position:sticky;top:0;z-index:200;background:rgba(3,8,15,0.92);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);padding:0 32px;height:64px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0;font-size:1.2rem;font-weight:800;
+  letter-spacing:-0.02em;color:var(--accent);text-decoration:none;user-select:none}
+.logo em{color:var(--accent2);font-style:normal}
+nav{display:flex;align-items:center;gap:2px}
+.nav-btn{position:relative;padding:8px 18px;background:none;border:none;cursor:pointer;
+  font-family:var(--fd);font-size:0.78rem;font-weight:700;letter-spacing:0.08em;
+  text-transform:uppercase;color:var(--muted);border-radius:8px;
+  transition:color .2s,background .2s;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.nav-btn::after{content:'';position:absolute;bottom:5px;left:50%;transform:translateX(-50%);
+  width:0;height:2px;background:var(--accent);border-radius:2px;transition:width .25s}
+.nav-btn:hover{color:var(--text);background:rgba(0,200,255,0.06)}
+.nav-btn.active{color:var(--accent)}.nav-btn.active::after{width:55%}
+.hright{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.no-login-badge{display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;
+  border:1px solid rgba(0,255,153,0.25);background:rgba(0,255,153,0.07);font-family:var(--fm);
+  font-size:0.62rem;font-weight:700;letter-spacing:0.08em;color:var(--accent2);
+  text-transform:uppercase;white-space:nowrap;animation:pulse-badge 3s ease-in-out infinite}
+@keyframes pulse-badge{0%,100%{box-shadow:0 0 0 0 rgba(0,255,153,0.15)}50%{box-shadow:0 0 0 4px rgba(0,255,153,0.06)}}
+
+/* ── LAYOUT ──────────────────────────────────────────────── */
+.wrap{max-width:1480px;margin:0 auto;padding:32px 24px 64px;position:relative;z-index:1;display:flex;flex-direction:column;gap:28px}
+.section-label{font-size:0.65rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--accent);display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.section-label::after{content:'';flex:1;height:1px;background:linear-gradient(to right,var(--border),transparent)}
+.panel-title{font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+/* ── PAGE HEADER ─────────────────────────────────────────── */
+.page-hdr h1{font-size:1.65rem;font-weight:800;letter-spacing:-0.025em;margin-bottom:6px}
+.page-hdr p{font-size:0.76rem;color:var(--muted);font-family:var(--fm)}
+
+/* ── DATASETS SIDE-BY-SIDE ───────────────────────────────── */
+.datasets-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+
+/* ── DATASET HEADER PILL ─────────────────────────────────── */
+.dataset-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.dataset-label{display:flex;align-items:center;gap:10px}
+.ds-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.ds-dot-a{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.ds-dot-b{background:var(--accent2);box-shadow:0 0 8px var(--accent2)}
+.dataset-heading h2{font-size:1.05rem;font-weight:800;letter-spacing:-0.01em}
+.ds-status{font-size:0.6rem;font-family:var(--fm);padding:3px 10px;border-radius:20px;
+  color:var(--muted);border:1px solid var(--border);transition:.3s}
+.ds-status.ready-a{color:var(--accent);border-color:rgba(0,200,255,0.35);background:rgba(0,200,255,0.08)}
+.ds-status.ready-b{color:var(--accent2);border-color:rgba(0,255,153,0.35);background:rgba(0,255,153,0.08)}
+
+/* ── INPUT CARD ──────────────────────────────────────────── */
+.input-card{
+  border-radius:var(--r);overflow:hidden;
+  border:2px solid var(--border);
+  transition:border-color .3s,box-shadow .3s;
+}
+.input-card.filled-a{border-color:rgba(0,200,255,0.4);box-shadow:0 0 28px rgba(0,200,255,0.06)}
+.input-card.filled-b{border-color:rgba(0,255,153,0.4);box-shadow:0 0 28px rgba(0,255,153,0.05)}
+
+.input-card-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;background:rgba(0,0,0,0.25);border-bottom:1px solid var(--border);
+}
+.input-card-title{display:flex;align-items:center;gap:9px;font-size:0.72rem;font-weight:700;
+  letter-spacing:0.08em;text-transform:uppercase;color:var(--text)}
+.input-card-badge{font-size:0.56rem;font-family:var(--fm);font-weight:700;letter-spacing:0.08em;
+  text-transform:uppercase;padding:2px 9px;border-radius:12px}
+.badge-a{color:var(--accent);background:rgba(0,200,255,0.1);border:1px solid rgba(0,200,255,0.25)}
+.badge-b{color:var(--accent2);background:rgba(0,255,153,0.08);border:1px solid rgba(0,255,153,0.2)}
+
+.input-card-body{padding:20px;background:var(--panel)}
+
+/* ── FORM ELEMENTS ───────────────────────────────────────── */
+.form-row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-label{font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)}
+.form-input{background:var(--surface);border:1px solid var(--border);border-radius:7px;
+  color:var(--text);font-family:var(--fm);font-size:0.7rem;padding:8px 10px;
+  outline:none;transition:border-color .2s;width:100%}
+.form-input:focus{border-color:var(--accent)}.form-input::placeholder{color:var(--muted)}
+.form-input option{background:var(--surface)}
+
+/* form sub-section divider */
+.fsub{font-size:0.59rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--accent);margin:16px 0 10px;display:flex;align-items:center;gap:8px}
+.fsub::after{content:'';flex:1;height:1px;background:linear-gradient(to right,var(--border),transparent)}
+
+
+
+/* ── FORM ACTIONS ────────────────────────────────────────── */
+.form-actions{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+.btn-gen{display:flex;align-items:center;gap:7px;padding:10px 20px;
+  background:linear-gradient(135deg,var(--accent),#005f80);color:#fff;border:none;
+  border-radius:8px;cursor:pointer;font-family:var(--fd);font-size:0.75rem;font-weight:700;
+  letter-spacing:0.05em;transition:transform .2s,box-shadow .2s}
+.btn-gen:hover{transform:translateY(-1px);box-shadow:0 5px 18px rgba(0,200,255,0.28)}
+.btn-rst{padding:10px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;
+  color:var(--muted);font-family:var(--fd);font-size:0.72rem;font-weight:600;cursor:pointer;transition:.2s}
+.btn-rst:hover{border-color:var(--accent3);color:var(--accent3)}
+.form-note{font-size:0.58rem;color:var(--muted);font-family:var(--fm);margin-left:auto;line-height:1.4;text-align:right}
+
+/* ── GENERATED SUMMARY STRIP ─────────────────────────────── */
+.gen-summary{
+  display:none;margin-top:14px;padding:12px 16px;
+  background:var(--surface);border:1px solid var(--border);border-radius:9px;
+  align-items:center;gap:12px;
+}
+.gen-summary.show{display:flex}
+.gen-icon{font-size:1.3rem}
+.gen-info{flex:1;min-width:0}
+.gen-name{font-family:var(--fm);font-size:0.7rem;font-weight:700;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gen-meta{font-size:0.6rem;color:var(--muted);font-family:var(--fm);margin-top:2px}
+.gen-redo{font-size:0.6rem;font-family:var(--fm);color:var(--muted);cursor:pointer;
+  padding:3px 9px;border:1px solid var(--border);border-radius:6px;transition:.15s;white-space:nowrap}
+.gen-redo:hover{border-color:var(--accent3);color:var(--accent3)}
+
+/* ── COMPARE EMPTY PLACEHOLDER ───────────────────────────── */
+.cmp-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  min-height:240px;border:1px dashed var(--border);border-radius:var(--r);
+  color:var(--muted);font-size:0.73rem;letter-spacing:0.08em;text-transform:uppercase}
+
+/* ── RESULTS ─────────────────────────────────────────────── */
+#cmp-results{display:none;flex-direction:column;gap:24px}
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.diff-panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;display:flex;flex-direction:column;gap:3px}
+.metric-label{font-size:0.56rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)}
+.metric-value{font-family:var(--fm);font-size:1rem;font-weight:700;color:var(--text)}
+.diff-row{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.diff-row:last-child{border:none}
+.diff-key{color:var(--muted);font-family:var(--fm);text-transform:uppercase;
+  letter-spacing:0.05em;font-size:0.58rem;min-width:70px}
+.diff-vals{display:flex;gap:14px;align-items:center}
+.diff-a{color:var(--accent);font-family:var(--fm);font-weight:700;font-size:0.72rem;min-width:58px;text-align:right}
+.diff-b{color:var(--accent2);font-family:var(--fm);font-weight:700;font-size:0.72rem;min-width:58px;text-align:right}
+.diff-delta{font-size:0.57rem;font-family:var(--fm);padding:2px 8px;border-radius:10px;min-width:52px;text-align:center}
+.diff-delta.pos{background:rgba(0,255,153,0.12);color:var(--accent2)}
+.diff-delta.neg{background:rgba(255,77,109,0.12);color:var(--accent3)}
+.diff-delta.neu{background:rgba(74,106,130,0.15);color:var(--muted)}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.cmp-chart-panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:18px}
+.cmp-chart-panel canvas{max-height:220px}
+
+/* ── TOAST ───────────────────────────────────────────────── */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:11px 22px;font-size:0.76rem;font-family:var(--fm);color:var(--text);
+  box-shadow:0 12px 40px rgba(0,0,0,0.5);opacity:0;pointer-events:none;
+  transition:opacity .3s,transform .3s;z-index:300;max-width:480px;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{border-color:rgba(0,255,153,0.4);color:var(--accent2)}
+#toast.warn{border-color:rgba(255,183,0,0.4);color:var(--accent4)}
+#toast.err{border-color:rgba(255,77,109,0.5);color:var(--accent3)}
+
+@media(max-width:960px){.datasets-grid,.summary-grid,.chart-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.form-row-3{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══════════════════════════════════════════════ -->
+<header>
+  <a class="logo" href="index.html">
+    <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="12" stroke="#00c8ff" stroke-width="1.5"/>
+      <ellipse cx="14" cy="14" rx="5" ry="12" stroke="#00c8ff" stroke-width="1" stroke-dasharray="3 2"/>
+      <line x1="2" y1="14" x2="26" y2="14" stroke="#00c8ff" stroke-width="1"/>
+      <circle cx="14" cy="14" r="2.5" fill="#00ff99"/>
+    </svg>
+    Climate<em>Explorer</em>
+  </a>
+  <nav>
+    <a class="nav-btn" href="index.html">⌂ Home</a>
+    <a class="nav-btn" href="dashboard.html">◉ Dashboard</a>
+    <a class="nav-btn active" href="compare.html">⇄ Compare</a>
+    <a class="nav-btn" href="visualize.html">✦ Visualize</a>
+  </nav>
+  <div class="hright">
+    <div class="no-login-badge">
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+        <rect x="2" y="5" width="8" height="6" rx="1.5" stroke="#00ff99" stroke-width="1.2"/>
+        <path d="M4 5V3.5a2 2 0 1 1 4 0V5" stroke="#00ff99" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+      No Login Required
+    </div>
+  </div>
+</header>
+
+<!-- ═══ MAIN ════════════════════════════════════════════════ -->
+<main class="wrap">
+
+  <div class="page-hdr">
+    <h1>⇄ Compare Datasets</h1>
+    <p>Enter parameters for two climate datasets, generate them, and compare side-by-side</p>
+  </div>
+
+  <!-- ── DATASET INPUT FORMS ────────────────────────────── -->
+  <div class="datasets-grid">
+
+    <!-- ════ DATASET A ════ -->
+    <div>
+      <div class="dataset-heading">
+        <div class="dataset-label">
+          <div class="ds-dot ds-dot-a"></div>
+          <h2>Dataset A</h2>
+        </div>
+        <span class="ds-status" id="status-a">Not generated</span>
+      </div>
+
+      <div class="input-card" id="card-a">
+        <div class="input-card-hdr">
+          <div class="input-card-title">
+            <span>🌍</span> Climate Parameters
+            <span class="input-card-badge badge-a">Dataset A</span>
+          </div>
+        </div>
+        <div class="input-card-body">
+
+          <div class="fsub">Date Range &amp; Location</div>
+          <div class="form-row-3">
+            <div class="form-group">
+              <label class="form-label">Start Date</label>
+              <input type="date" class="form-input" id="a-start" value="2023-01-01"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">End Date</label>
+              <input type="date" class="form-input" id="a-end" value="2023-12-31"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Station Name</label>
+              <input type="text" class="form-input" id="a-station" placeholder="e.g. Station Alpha"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Latitude</label>
+              <input type="number" class="form-input" id="a-lat" placeholder="28.6139" step="0.0001" min="-90" max="90"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Longitude</label>
+              <input type="number" class="form-input" id="a-lon" placeholder="77.2090" step="0.0001" min="-180" max="180"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Elevation (m)</label>
+              <input type="number" class="form-input" id="a-elev" placeholder="216"/>
+            </div>
+          </div>
+
+          <div class="fsub">Climate Settings</div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Climate Zone</label>
+              <select class="form-input" id="a-zone">
+                <option value="tropical">Tropical (hot &amp; humid)</option>
+                <option value="subtropical">Subtropical</option>
+                <option value="temperate" selected>Temperate (four seasons)</option>
+                <option value="continental">Continental</option>
+                <option value="polar">Polar</option>
+                <option value="arid">Arid / Desert</option>
+                <option value="highland">Highland / Mountain</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data Resolution</label>
+              <select class="form-input" id="a-res">
+                <option value="daily" selected>Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-gen" onclick="generateData('a')">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M3 7h8M7 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Generate Dataset A
+            </button>
+            <button class="btn-rst" onclick="resetForm('a')">Reset</button>
+            <span class="form-note">Synthetic data modelled<br/>on zone &amp; coordinates</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generated summary A -->
+      <div class="gen-summary" id="gen-a">
+        <div class="gen-icon">🌍</div>
+        <div class="gen-info">
+          <div class="gen-name" id="gen-a-name">—</div>
+          <div class="gen-meta" id="gen-a-meta">—</div>
+        </div>
+        <span class="gen-redo" onclick="redoSide('a')">Regenerate ↺</span>
+      </div>
+    </div>
+
+    <!-- ════ DATASET B ════ -->
+    <div>
+      <div class="dataset-heading">
+        <div class="dataset-label">
+          <div class="ds-dot ds-dot-b"></div>
+          <h2>Dataset B</h2>
+        </div>
+        <span class="ds-status" id="status-b">Not generated</span>
+      </div>
+
+      <div class="input-card" id="card-b">
+        <div class="input-card-hdr">
+          <div class="input-card-title">
+            <span>🌍</span> Climate Parameters
+            <span class="input-card-badge badge-b">Dataset B</span>
+          </div>
+        </div>
+        <div class="input-card-body">
+
+          <div class="fsub">Date Range &amp; Location</div>
+          <div class="form-row-3">
+            <div class="form-group">
+              <label class="form-label">Start Date</label>
+              <input type="date" class="form-input" id="b-start" value="2024-01-01"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">End Date</label>
+              <input type="date" class="form-input" id="b-end" value="2024-12-31"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Station Name</label>
+              <input type="text" class="form-input" id="b-station" placeholder="e.g. Station Beta"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Latitude</label>
+              <input type="number" class="form-input" id="b-lat" placeholder="51.5074" step="0.0001" min="-90" max="90"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Longitude</label>
+              <input type="number" class="form-input" id="b-lon" placeholder="-0.1278" step="0.0001" min="-180" max="180"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Elevation (m)</label>
+              <input type="number" class="form-input" id="b-elev" placeholder="11"/>
+            </div>
+          </div>
+
+          <div class="fsub">Climate Settings</div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Climate Zone</label>
+              <select class="form-input" id="b-zone">
+                <option value="tropical">Tropical (hot &amp; humid)</option>
+                <option value="subtropical">Subtropical</option>
+                <option value="temperate">Temperate (four seasons)</option>
+                <option value="continental" selected>Continental</option>
+                <option value="polar">Polar</option>
+                <option value="arid">Arid / Desert</option>
+                <option value="highland">Highland / Mountain</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data Resolution</label>
+              <select class="form-input" id="b-res">
+                <option value="daily" selected>Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-gen" onclick="generateData('b')">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M3 7h8M7 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Generate Dataset B
+            </button>
+            <button class="btn-rst" onclick="resetForm('b')">Reset</button>
+            <span class="form-note">Synthetic data modelled<br/>on zone &amp; coordinates</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generated summary B -->
+      <div class="gen-summary" id="gen-b">
+        <div class="gen-icon">🌍</div>
+        <div class="gen-info">
+          <div class="gen-name" id="gen-b-name">—</div>
+          <div class="gen-meta" id="gen-b-meta">—</div>
+        </div>
+        <span class="gen-redo" onclick="redoSide('b')">Regenerate ↺</span>
+      </div>
+    </div>
+
+  </div><!-- /datasets-grid -->
+
+  <!-- ── EMPTY STATE ──────────────────────────────────────── -->
+  <div class="cmp-empty" id="cmp-empty">
+    <span style="font-size:2rem;opacity:.2">⇄</span>
+    Generate both Dataset A and Dataset B to begin comparison
+  </div>
+
+  <!-- ── RESULTS ─────────────────────────────────────────── -->
+  <div id="cmp-results">
+    <div class="section-label">Statistics Comparison</div>
+    <div class="summary-grid">
+      <div class="diff-panel">
+        <div class="panel-title" style="display:flex;align-items:center">
+          <span>⇄</span> Column Deltas
+          <div style="margin-left:auto;display:flex;align-items:center;gap:10px;font-size:0.6rem;font-family:var(--fm)">
+            <span style="color:var(--accent)">■ A</span>
+            <span style="color:var(--accent2)">■ B</span>
+          </div>
+        </div>
+        <div id="diff-rows"></div>
+      </div>
+      <div class="diff-panel">
+        <div class="panel-title"><span>📊</span> Overview</div>
+        <div class="metrics-grid" id="cmp-overview"></div>
+      </div>
+    </div>
+    <div class="section-label">Overlaid Charts</div>
+    <div class="chart-grid" id="cmp-charts"></div>
+  </div>
+
+</main>
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCRIPT
+════════════════════════════════════════════════════════ -->
+<script>
+/* ── UTILS ───────────────────────────────────────────────── */
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='show '+type;
+  clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3600);
+}
+const CI={};
+function killChart(id){if(CI[id]){CI[id].destroy();delete CI[id]}}
+function cOpts(xLbl='Row'){
+  return{
+    responsive:true,maintainAspectRatio:true,
+    plugins:{
+      legend:{labels:{color:'#4a6a82',font:{size:9,family:'Space Mono'}}},
+      tooltip:{backgroundColor:'#080f1a',titleColor:'#00c8ff',bodyColor:'#d6eaf8',borderColor:'rgba(0,200,255,0.3)',borderWidth:1}
+    },
+    scales:{
+      x:{grid:{color:'rgba(0,200,255,0.06)'},ticks:{color:'#4a6a82',font:{size:9},maxTicksLimit:10}},
+      y:{grid:{color:'rgba(0,200,255,0.06)'},ticks:{color:'#4a6a82',font:{size:9}}}
+    }
+  };
+}
+
+/* ── STATE ───────────────────────────────────────────────── */
+let dataA=null, dataB=null;
+const DEFAULT_PARAMS=['TMAX','TMIN','PRCP','SNOW','AWND','HUM','PRES'];
+
+/* ── ZONE PROFILES ───────────────────────────────────────── */
+const ZONES={
+  tropical:   {base:26, amp:4,  baseP:8,  sc:0},
+  subtropical:{base:22, amp:10, baseP:5,  sc:0.02},
+  temperate:  {base:12, amp:14, baseP:4,  sc:0.1},
+  continental:{base:5,  amp:20, baseP:3,  sc:0.25},
+  polar:      {base:-15,amp:20, baseP:1,  sc:0.7},
+  arid:       {base:28, amp:12, baseP:0.3,sc:0},
+  highland:   {base:8,  amp:16, baseP:3,  sc:0.35}
+};
+
+/* ── GENERATE DATA ───────────────────────────────────────── */
+function generateData(side){
+  const start = new Date(document.getElementById(`${side}-start`).value);
+  const end   = new Date(document.getElementById(`${side}-end`).value);
+  const station = document.getElementById(`${side}-station`).value || `Station_${side.toUpperCase()}`;
+  const lat  = parseFloat(document.getElementById(`${side}-lat`).value)  || (side==='a'?28.6:51.5);
+  const lon  = parseFloat(document.getElementById(`${side}-lon`).value)  || (side==='a'?77.2:-0.1);
+  const elev = parseFloat(document.getElementById(`${side}-elev`).value) || 0;
+  const zone = document.getElementById(`${side}-zone`).value;
+  const res  = document.getElementById(`${side}-res`).value;
+  const ps   = new Set(DEFAULT_PARAMS);
+
+  if(isNaN(start.getTime())||isNaN(end.getTime())||end<start){
+    showToast(`Invalid date range for Dataset ${side.toUpperCase()}`,'err');return;
+  }
+
+  const zp=ZONES[zone]||ZONES.temperate;
+  const step=res==='monthly'?30:res==='weekly'?7:1;
+  const records=[], columns=['STATION','DATE','LAT','LON','ELEV',...Array.from(ps)];
+
+  let cur=new Date(start);
+  while(cur<=end){
+    const doy=Math.floor((cur-new Date(cur.getFullYear(),0,0))/86400000);
+    const ph=doy/365*2*Math.PI;
+    const tb=zp.base+zp.amp*Math.sin(ph-Math.PI/2)+elev*(-0.0065);
+    const n=()=>(Math.random()-.5)*3;
+    const row={STATION:station,DATE:cur.toISOString().slice(0,10),LAT:lat,LON:lon,ELEV:elev};
+    if(ps.has('TMAX')) row.TMAX=+(tb+Math.abs(n()*2)+4).toFixed(1);
+    if(ps.has('TMIN')) row.TMIN=+(tb+n()-4).toFixed(1);
+    if(ps.has('PRCP')) row.PRCP=+(Math.random()<.35?Math.random()*zp.baseP*10:0).toFixed(1);
+    if(ps.has('RAIN')) row.RAIN=+(row.PRCP&&zp.sc<0.2?row.PRCP:0)||0;
+    if(ps.has('SNOW')) row.SNOW=+(Math.random()<zp.sc?Math.random()*20:0).toFixed(1);
+    if(ps.has('AWND')) row.AWND=+(1+Math.random()*9).toFixed(1);
+    if(ps.has('HUM'))  row.HUM=+(40+Math.random()*50).toFixed(1);
+    if(ps.has('PRES')) row.PRES=+(1013-elev*0.12+n()*2).toFixed(1);
+    if(ps.has('DEWP')) row.DEWP=+(tb-5+n()).toFixed(1);
+    records.push(row);
+    cur=new Date(cur.getTime()+step*86400000);
+  }
+
+  // Stats
+  const numCols=Array.from(ps), stats={};
+  numCols.forEach(k=>{
+    const v=records.map(r=>r[k]).filter(x=>x!=null&&!isNaN(x));
+    if(v.length) stats[k]={min:Math.min(...v),max:Math.max(...v),mean:v.reduce((a,b)=>a+b)/v.length,count:v.length};
+  });
+
+  const json={columns,records,stats,row_count:records.length,parse_errors:[],filename:`${station}_${zone}.cn`};
+  if(side==='a') dataA=json; else dataB=json;
+
+  // Update card border
+  document.getElementById(`card-${side}`).classList.toggle('filled-a', side==='a');
+  document.getElementById(`card-${side}`).classList.toggle('filled-b', side==='b');
+
+  // Status badge
+  const st=document.getElementById(`status-${side}`);
+  st.textContent='Generated ✓';
+  st.className=`ds-status ready-${side}`;
+
+  // Summary strip
+  const gs=document.getElementById(`gen-${side}`);
+  gs.classList.add('show');
+  document.getElementById(`gen-${side}-name`).textContent=`${station} · ${zone}`;
+  document.getElementById(`gen-${side}-meta`).textContent=`${records.length} ${res} records · ${numCols.length} parameters · ${start.getFullYear()}–${end.getFullYear()}`;
+
+  showToast(`✓ Dataset ${side.toUpperCase()} generated — ${records.length} ${res} records`,'ok');
+
+  if(dataA&&dataB) renderComparison();
+  else document.getElementById('cmp-empty').style.display='flex';
+}
+
+/* ── REDO / RESET ────────────────────────────────────────── */
+function redoSide(side){
+  if(side==='a') dataA=null; else dataB=null;
+  document.getElementById(`gen-${side}`).classList.remove('show');
+  document.getElementById(`card-${side}`).classList.remove('filled-a','filled-b');
+  document.getElementById(`status-${side}`).textContent='Not generated';
+  document.getElementById(`status-${side}`).className='ds-status';
+  document.getElementById('cmp-empty').style.display='flex';
+  document.getElementById('cmp-results').style.display='none';
+  ['cc1','cc2','cc3'].forEach(id=>killChart(id));
+}
+
+function resetForm(side){
+  document.getElementById(`${side}-start`).value=side==='a'?'2023-01-01':'2024-01-01';
+  document.getElementById(`${side}-end`).value=side==='a'?'2023-12-31':'2024-12-31';
+  ['station','lat','lon','elev'].forEach(f=>document.getElementById(`${side}-${f}`).value='');
+  document.getElementById(`${side}-zone`).value=side==='a'?'temperate':'continental';
+  document.getElementById(`${side}-res`).value='daily';
+  redoSide(side);
+}
+
+/* ── RENDER COMPARISON ───────────────────────────────────── */
+function renderComparison(){
+  document.getElementById('cmp-empty').style.display='none';
+  document.getElementById('cmp-results').style.display='flex';
+
+  const A=dataA, B=dataB;
+  const shared=[...new Set([...A.columns,...B.columns])].filter(c=>A.stats[c]&&B.stats[c]);
+
+  // Diff table
+  document.getElementById('diff-rows').innerHTML = shared.slice(0,12).map(c=>{
+    const a=A.stats[c].mean, b=B.stats[c].mean, delta=b-a;
+    const pct=(a!==0?((delta/Math.abs(a))*100):0).toFixed(1);
+    const cls=Math.abs(delta)<0.01?'neu':(delta>0?'pos':'neg');
+    return`<div class="diff-row">
+      <span class="diff-key">${c}</span>
+      <div class="diff-vals">
+        <span class="diff-a">${a.toFixed(2)}</span>
+        <span class="diff-b">${b.toFixed(2)}</span>
+        <span class="diff-delta ${cls}">${delta>0?'+':''}${pct}%</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Overview cards
+  document.getElementById('cmp-overview').innerHTML=`
+    <div class="metric-card"><span class="metric-label">A Rows</span><span class="metric-value" style="color:var(--accent)">${A.row_count}</span></div>
+    <div class="metric-card"><span class="metric-label">B Rows</span><span class="metric-value" style="color:var(--accent2)">${B.row_count}</span></div>
+    <div class="metric-card"><span class="metric-label">A Cols</span><span class="metric-value" style="color:var(--accent)">${A.columns.length}</span></div>
+    <div class="metric-card"><span class="metric-label">B Cols</span><span class="metric-value" style="color:var(--accent2)">${B.columns.length}</span></div>
+    <div class="metric-card"><span class="metric-label">Shared Cols</span><span class="metric-value">${shared.length}</span></div>
+    <div class="metric-card"><span class="metric-label">Both Manual</span><span class="metric-value" style="color:var(--accent2)">✓</span></div>`;
+
+  // Charts
+  const cc=document.getElementById('cmp-charts');
+  cc.innerHTML='';
+  ['cc1','cc2','cc3'].forEach(id=>killChart(id));
+
+  const cA=k=>A.columns.find(c=>c.toUpperCase()===k);
+  const cB=k=>B.columns.find(c=>c.toUpperCase()===k);
+  const n=Math.min(80,A.records.length,B.records.length);
+  const labels=Array.from({length:n},(_,i)=>i+1);
+
+  // Temperature chart
+  const tmA=cA('TMAX'),tmB=cB('TMAX'),tnA=cA('TMIN'),tnB=cB('TMIN');
+  if(tmA||tmB||tnA||tnB){
+    const p=document.createElement('div');p.className='cmp-chart-panel';
+    p.innerHTML=`<div class="panel-title">🌡 Temperature</div><canvas id="cc1"></canvas>`;
+    cc.appendChild(p);
+    CI['cc1']=new Chart(document.getElementById('cc1'),{
+      type:'line',
+      data:{labels,datasets:[
+        tmA&&{label:'A T-Max',data:A.records.slice(0,n).map(r=>r[tmA]),borderColor:'#00c8ff',tension:.4,pointRadius:0,borderWidth:2,fill:false},
+        tmB&&{label:'B T-Max',data:B.records.slice(0,n).map(r=>r[tmB]),borderColor:'#00ff99',tension:.4,pointRadius:0,borderWidth:2,fill:false,borderDash:[5,3]},
+        tnA&&{label:'A T-Min',data:A.records.slice(0,n).map(r=>r[tnA]),borderColor:'rgba(0,200,255,0.45)',tension:.4,pointRadius:0,borderWidth:1.5,fill:false},
+        tnB&&{label:'B T-Min',data:B.records.slice(0,n).map(r=>r[tnB]),borderColor:'rgba(0,255,153,0.45)',tension:.4,pointRadius:0,borderWidth:1.5,fill:false,borderDash:[5,3]},
+      ].filter(Boolean)},
+      options:cOpts()
+    });
+  }
+
+  // Precipitation chart
+  const pcA=cA('PRCP'),pcB=cB('PRCP');
+  if(pcA||pcB){
+    const p=document.createElement('div');p.className='cmp-chart-panel';
+    p.innerHTML=`<div class="panel-title">🌧 Precipitation</div><canvas id="cc2"></canvas>`;
+    cc.appendChild(p);
+    CI['cc2']=new Chart(document.getElementById('cc2'),{
+      type:'bar',
+      data:{labels,datasets:[
+        pcA&&{label:'A PRCP',data:A.records.slice(0,n).map(r=>r[pcA]),backgroundColor:'rgba(0,200,255,0.5)',borderRadius:2},
+        pcB&&{label:'B PRCP',data:B.records.slice(0,n).map(r=>r[pcB]),backgroundColor:'rgba(0,255,153,0.5)',borderRadius:2},
+      ].filter(Boolean)},
+      options:cOpts()
+    });
+  }
+
+  // Mean comparison bar chart
+  if(shared.length>=2){
+    const p=document.createElement('div');p.className='cmp-chart-panel';
+    p.innerHTML=`<div class="panel-title">📊 Mean Values</div><canvas id="cc3"></canvas>`;
+    cc.appendChild(p);
+    const cols=shared.slice(0,8);
+    CI['cc3']=new Chart(document.getElementById('cc3'),{
+      type:'bar',
+      data:{
+        labels:cols,
+        datasets:[
+          {label:'A Mean',data:cols.map(c=>A.stats[c].mean),backgroundColor:'rgba(0,200,255,0.55)',borderRadius:3},
+          {label:'B Mean',data:cols.map(c=>B.stats[c].mean),backgroundColor:'rgba(0,255,153,0.55)',borderRadius:3},
+        ]
+      },
+      options:cOpts('Column')
+    });
+  }
+}
+</script>
+</body>
+</html>

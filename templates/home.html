@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Climate Explorer — Home</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap"
+    rel="stylesheet" />
+  <style>
+    /* ── BASE & SHARED TOKENS ── */
+    :root {
+      --bg: #010205;
+      --surface: #040812;
+      --panel: rgba(6, 11, 23, 0.6);
+      --border: rgba(0, 200, 255, 0.15);
+      --accent: #00c8ff;
+      --accent2: #00ff99;
+      --accent3: #ff4d6d;
+      --accent4: #ffb700;
+      --text: #d6eaf8;
+      --muted: #4a6a82;
+      --glow: rgba(0, 200, 255, 0.18);
+      --fd: 'Syne', sans-serif;
+      --fm: 'Space Mono', monospace;
+      --r: 16px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--fd);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 200, 255, 0.05) 0%, transparent 70%), radial-gradient(ellipse 60% 40% at 90% 80%, rgba(0, 255, 153, 0.03) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(1, 2, 5, 0.7);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .logo em {
+      color: var(--accent2);
+      font-style: normal;
+    }
+
+    nav {
+      display: flex;
+      gap: 40px;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .nav-btn {
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      transition: all 0.3s ease;
+      padding: 8px 0;
+      position: relative;
+    }
+
+    .nav-btn:hover {
+      color: var(--text);
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+    }
+
+    .nav-btn.active {
+      color: var(--accent);
+      text-shadow: 0 0 12px var(--glow);
+    }
+
+    .nav-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      box-shadow: 0 -2px 10px var(--accent);
+    }
+
+    .hright {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--fm);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .no-login-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(0, 255, 153, 0.1);
+      border: 1px solid rgba(0, 255, 153, 0.3);
+      border-radius: 20px;
+      color: var(--accent2);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .status-dot.active {
+      background: var(--accent2);
+      box-shadow: 0 0 8px var(--accent2);
+    }
+
+    .spinner {
+      display: none;
+      width: 14px;
+      height: 14px;
+      border: 2px solid transparent;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .spinner.show {
+      display: block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-family: var(--fm);
+      color: var(--text);
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.3s;
+      z-index: 1000;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #toast.ok {
+      border-color: rgba(0, 255, 153, 0.5);
+      color: var(--accent2);
+    }
+
+    #toast.warn {
+      border-color: rgba(255, 183, 0, 0.5);
+      color: var(--accent4);
+    }
+
+    /* ── HOME SPECIFIC ── */
+    .wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .section-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      width: 100%;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--border), transparent);
+    }
+
+    .home-hero {
+      padding: 80px 0 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px
+    }
+
+    .home-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(0, 200, 255, 0.3);
+      background: rgba(0, 200, 255, 0.07);
+      font-size: 0.63rem;
+      font-family: var(--fm);
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      text-transform: uppercase
+    }
+
+    .home-hero h1 {
+      font-size: clamp(2.4rem, 5vw, 4.2rem);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #ffffff 0%, var(--accent) 50%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      max-width: 760px;
+      background-size: 200% auto;
+      animation: gradientShift 5s ease infinite;
+    }
+
+    .home-hero>p {
+      font-size: 1rem;
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.75
+    }
+
+    .hero-perks {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center
+    }
+
+    .hero-perk {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--fm);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase
+    }
+
+    .perk-green {
+      color: var(--accent2)
+    }
+
+    .perk-cyan {
+      color: var(--accent)
+    }
+
+    .perk-yellow {
+      color: var(--accent4)
+    }
+
+    .perk-purple {
+      color: #cc99ff
+    }
+
+    .hero-perk-sep {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0
+    }
+
+    .hero-note {
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-family: var(--fm);
+      letter-spacing: 0.02em
+    }
+
+    .home-cta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center
+    }
+
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 30px;
+      background: linear-gradient(135deg, var(--accent), #005f80);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: var(--fd);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      transition: transform .2s, box-shadow .2s
+    }
+
+    .btn-ghost {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 30px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: var(--fd);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      transition: .2s;
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    .home-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      background: var(--panel);
+      width: 100%;
+      margin-top: 60px
+    }
+
+    .hstat {
+      padding: 24px;
+      border-right: 1px solid var(--border);
+      text-align: left
+    }
+
+    .hstat:last-child {
+      border-right: none
+    }
+
+    .hstat-num {
+      font-family: var(--fm);
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 4px
+    }
+
+    .hstat-lbl {
+      font-size: 0.63rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted)
+    }
+
+    .home-features {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      width: 100%;
+      margin-top: 52px
+    }
+
+    .feat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 28px 24px;
+      text-align: left;
+      transition: transform 0.2s ease-out, box-shadow 0.3s ease, border-color 0.3s ease;
+      cursor: pointer;
+      display: block;
+      will-change: transform;
+    }
+
+    .feat-icon {
+      font-size: 2.2rem;
+      margin-bottom: 16px
+    }
+
+    .feat-card h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text)
+    }
+
+    .feat-card p {
+      font-size: 0.73rem;
+      color: var(--muted);
+      line-height: 1.65
+    }
+
+    .feat-tag {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.58rem;
+      font-family: var(--fm);
+      font-weight: 700;
+      background: rgba(0, 200, 255, 0.08);
+      border: 1px solid rgba(0, 200, 255, 0.2);
+      color: var(--accent)
+    }
+
+    .home-recent {
+      width: 100%;
+      margin-top: 48px;
+      text-align: left
+    }
+
+    .recent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 14px
+    }
+
+    .recent-empty {
+      color: var(--muted);
+      font-size: 0.73rem;
+      font-family: var(--fm);
+      padding: 12px 0
+    }
+
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: var(--fm);
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: .15s;
+    }
+
+    .recent-item:hover {
+      border-color: rgba(0, 200, 255, 0.3);
+      background: rgba(0, 200, 255, 0.04)
+    }
+
+    .recent-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent2);
+      flex-shrink: 0
+    }
+
+    .recent-name {
+      color: var(--text);
+      flex: 1
+    }
+
+    .recent-meta {
+      color: var(--muted)
+    }
+
+    .how-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      width: 100%;
+      margin-top: 52px;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      background: var(--panel)
+    }
+
+    .how-step {
+      padding: 28px 24px;
+      border-right: 1px solid var(--border);
+      text-align: left
+    }
+
+    .how-step:last-child {
+      border-right: none
+    }
+
+    .how-num {
+      font-family: var(--fm);
+      font-size: 2rem;
+      font-weight: 700;
+      color: rgba(0, 200, 255, 0.18);
+      margin-bottom: 10px
+    }
+
+    .how-step h4 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text)
+    }
+
+    .how-step p {
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.6
+    }
+
+    /* ── INTERACTIVE UPGRADES ── */
+    .cursor-glow {
+      position: fixed;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(0, 200, 255, 0.08) 0%, transparent 60%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: opacity 0.3s ease;
+      mix-blend-mode: screen;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .reveal.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .feat-card:hover {
+      box-shadow: 0 15px 40px rgba(0, 200, 255, 0.15), inset 0 0 0 1px rgba(0, 200, 255, 0.3);
+      z-index: 10;
+    }
+
+    @keyframes gradientShift {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    @keyframes pulseGlow {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 200, 255, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(0, 200, 255, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 200, 255, 0);
+      }
+    }
+
+    .btn-primary:hover {
+      animation: pulseGlow 1.5s infinite;
+    }
+
+    @media(max-width:1000px) {
+
+      .home-features,
+      .home-stats {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      .how-strip {
+        grid-template-columns: 1fr
+      }
+
+      .how-step {
+        border-right: none;
+        border-bottom: 1px solid var(--border)
+      }
+
+      .how-step:last-child {
+        border-bottom: none
+      }
+    }
+
+    @media(max-width:600px) {
+      .home-features {
+        grid-template-columns: 1fr
+      }
+
+      .home-stats {
+        grid-template-columns: 1fr 1fr
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <a class="logo" href="home.html">
+      <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="12" stroke="#00c8ff" stroke-width="1.5" />
+        <ellipse cx="14" cy="14" rx="5" ry="12" stroke="#00c8ff" stroke-width="1" stroke-dasharray="3 2" />
+        <line x1="2" y1="14" x2="26" y2="14" stroke="#00c8ff" stroke-width="1" />
+        <circle cx="14" cy="14" r="2.5" fill="#00ff99" />
+      </svg>
+      Climate<em>Explorer</em>
+    </a>
+    <nav>
+      <a class="nav-btn" data-page="home" href="home.html"><i>⌂</i> Home</a>
+      <a class="nav-btn" data-page="dashboard" href="dashboard.html"><i>◉</i> Dashboard</a>
+      <a class="nav-btn" data-page="compare" href="compare.html"><i>⇄</i> Compare</a>
+      <a class="nav-btn" data-page="visualize" href="visualize.html"><i>✦</i> Visualize</a>
+    </nav>
+    <div class="hright">
+      <div class="no-login-badge"><svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <rect x="2" y="5" width="8" height="6" rx="1.5" stroke="#00ff99" stroke-width="1.2" />
+          <path d="M4 5V3.5a2 2 0 1 1 4 0V5" stroke="#00ff99" stroke-width="1.2" stroke-linecap="round" />
+        </svg> No Login Required</div>
+      <div class="spinner" id="spinner"></div>
+      <input type="file" id="file-input" accept=".cn,.nc" style="display:none;" />
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="home-hero">
+      <div class="home-badge"><svg width="7" height="7" viewBox="0 0 8 8">
+          <circle cx="4" cy="4" r="4" fill="#00ff99" />
+        </svg> Climate Network Data Explorer</div>
+      <h1>Explore Earth's Climate&nbsp;in&nbsp;Real&nbsp;Time</h1>
+      <p>Upload .cn or .nc climate data files and unlock interactive visualizations — 3D globe mapping, multi-dataset
+        comparisons, and rich statistical charts.</p>
+      <div class="hero-perks">
+        <div class="hero-perk perk-green"><svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <rect x="2" y="5" width="8" height="6" rx="1.5" stroke="#00ff99" stroke-width="1.2" />
+            <path d="M4 5V3.5a2 2 0 1 1 4 0V5" stroke="#00ff99" stroke-width="1.2" stroke-linecap="round" />
+          </svg> No login required</div>
+        <span class="hero-perk-sep"></span>
+        <div class="hero-perk perk-cyan"><svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="#00c8ff" stroke-width="1.2" />
+            <path d="M6 3.5v2.8l1.5 1.5" stroke="#00c8ff" stroke-width="1.2" stroke-linecap="round" />
+          </svg> Instant results</div>
+        <span class="hero-perk-sep"></span>
+        <div class="hero-perk perk-yellow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M6 1l1.2 3.6H11L8.2 6.7l1 3.3L6 8.1 2.8 10l1-3.3L1 4.6h3.8z" stroke="#ffb700" stroke-width="1.1"
+              stroke-linejoin="round" />
+          </svg> Free to use</div>
+        <span class="hero-perk-sep"></span>
+        <div class="hero-perk perk-purple"><svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="#cc99ff" stroke-width="1.2" />
+            <path d="M4 6l1.5 1.5L8 4" stroke="#cc99ff" stroke-width="1.2" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg> No data stored</div>
+      </div>
+      <div class="home-cta">
+        <button class="btn-primary" onclick="document.getElementById('file-input').click()">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <path d="M7 1v8M4 4l3-3 3 3M2 11h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg> Upload File
+        </button>
+        <button class="btn-ghost" onclick="loadAndGoDemo()">View Demo &rarr;</button>
+      </div>
+      <p class="hero-note">Just upload and explore — your data never leaves your browser.</p>
+    </div>
+
+    <div class="home-stats">
+      <div class="hstat">
+        <div class="hstat-num" id="hs-rows">—</div>
+        <div class="hstat-lbl">Data Rows</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-num" id="hs-cols">—</div>
+        <div class="hstat-lbl">Columns</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-num" id="hs-tmax">—</div>
+        <div class="hstat-lbl">Avg Temp Max °</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-num" id="hs-prcp">—</div>
+        <div class="hstat-lbl">Avg Precip mm</div>
+      </div>
+    </div>
+
+    <div class="home-features">
+      <a class="feat-card" href="dashboard.html">
+        <div class="feat-icon">🌐</div>
+        <h3>3D Globe Dashboard</h3>
+        <p>Rotate an interactive WebGL Earth with your data plotted as glowing point clouds on the globe surface.</p>
+        <span class="feat-tag">Three.js &middot; WebGL</span>
+      </a>
+      <a class="feat-card" href="dashboard.html">
+        <div class="feat-icon">🌡</div>
+        <h3>Climate Metrics</h3>
+        <p>Auto-summarizes temperature, precipitation, rainfall, snowfall, wind speed, humidity and pressure.</p>
+        <span class="feat-tag">Auto-detect &middot; Real-time</span>
+      </a>
+      <a class="feat-card" href="compare.html">
+        <div class="feat-icon">⇄</div>
+        <h3>Dataset Comparison</h3>
+        <p>Load two .cn/.nc files side-by-side and see delta comparisons with color-coded difference indicators.</p>
+        <span class="feat-tag">Side-by-side &middot; Diff view</span>
+      </a>
+      <a class="feat-card" href="visualize.html">
+        <div class="feat-icon">✦</div>
+        <h3>Custom Visualizations</h3>
+        <p>Switch between line, bar, scatter, radar, polar and doughnut charts. Pick axes, points, and palettes.</p>
+        <span class="feat-tag">6 chart types &middot; Configurable</span>
+      </a>
+    </div>
+
+    <div class="how-strip">
+      <div class="how-step">
+        <div class="how-num">01</div>
+        <h4>Upload your data file</h4>
+        <p>Click the upload button on any page. Supports .cn and .nc (NetCDF) formats — no account, no signup needed.
+        </p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">02</div>
+        <h4>Explore the Dashboard</h4>
+        <p>See your data on a live 3D globe, review auto-detected climate metrics, and browse rendered charts instantly.
+        </p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">03</div>
+        <h4>Compare &amp; Visualize</h4>
+        <p>Load a second dataset to compare deltas, or head to Visualize to build custom charts with full axis control.
+        </p>
+      </div>
+    </div>
+
+    <div class="home-recent">
+      <div class="section-label">Recent Session Files</div>
+      <div class="recent-list" id="recent-list">
+        <div class="recent-empty">No files loaded yet — upload a .cn or .nc file to get started.</div>
+      </div>
+    </div>
+  </main>
+  <div id="toast"></div>
+
+  <script>
+    /* ── SHARED BASE LOGIC ── */
+    const BACKEND = 'http://localhost:8000';
+    function setActiveNav() {
+      const page = window.location.pathname.split('/').pop().replace('.html', '') || 'home';
+      document.querySelectorAll('nav a').forEach(a => { if (a.dataset.page === page || a.getAttribute('href').includes(page)) a.classList.add('active'); else a.classList.remove('active'); });
+    }
+    function loadData() { try { return JSON.parse(sessionStorage.getItem('climate_data')); } catch { return null; } }
+    function saveData(data) { try { sessionStorage.setItem('climate_data', JSON.stringify(data)); } catch { } }
+    function showToast(msg, type = 'ok') {
+      let t = document.getElementById('toast');
+      t.textContent = msg; t.className = `show ${type}`;
+      clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', 3800);
+    }
+    function makeDemoData(filename = 'demo.cn', count = 120) {
+      const columns = ['STATION', 'DATE', 'LAT', 'LON', 'TMAX', 'TMIN', 'PRCP', 'SNOW', 'AWND', 'HUM', 'PRES'];
+      const records = Array.from({ length: count }, (_, i) => ({
+        STATION: 'DEMO001', DATE: `2024-01-${(i % 31) + 1}`.padStart(2, '0'), LAT: 35 + (Math.random() - 0.5) * 10, LON: -100 + (Math.random() - 0.5) * 20,
+        TMAX: +(18 + 12 * Math.sin(i / 12) + (Math.random() - 0.5) * 4).toFixed(1), TMIN: +(6 + 8 * Math.sin(i / 12) + (Math.random() - 0.5) * 3).toFixed(1),
+        PRCP: +(Math.random() < 0.3 ? Math.random() * 25 : 0).toFixed(1), SNOW: +(Math.random() < 0.1 ? Math.random() * 10 : 0).toFixed(1),
+        AWND: +(2 + Math.random() * 8).toFixed(1), HUM: +(40 + Math.random() * 40).toFixed(1), PRES: +(1010 + (Math.random() - 0.5) * 20).toFixed(1)
+      }));
+      const stats = {};
+      ['TMAX', 'TMIN', 'PRCP', 'SNOW', 'AWND', 'HUM', 'PRES'].forEach(k => {
+        const vals = records.map(r => r[k]);
+        stats[k] = { min: Math.min(...vals), max: Math.max(...vals), mean: vals.reduce((a, b) => a + b, 0) / vals.length, count: vals.length };
+      });
+      return { columns, records, stats, row_count: records.length, parse_errors: [], filename };
+    }
+    function wireFileInput(cb) {
+      const inp = document.getElementById('file-input');
+      if (inp) inp.addEventListener('change', async function () {
+        if (!this.files[0]) return;
+        const spinner = document.getElementById('spinner'); if (spinner) spinner.classList.add('show');
+        const dot = document.getElementById('status-dot'); if (dot) dot.classList.remove('active');
+        const fd = new FormData(); fd.append('file', this.files[0]);
+        try {
+          const res = await fetch(`${BACKEND}/upload`, { method: 'POST', body: fd });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.detail || 'Upload failed');
+          saveData(json);
+          if (dot) dot.classList.add('active');
+          document.getElementById('file-name').textContent = json.filename;
+          showToast(`✓ ${json.filename} — ${json.row_count} rows`, 'ok');
+          if (cb) cb(json);
+        } catch (e) {
+          showToast('Upload failed: ' + e.message, 'warn');
+        } finally {
+          if (spinner) spinner.classList.remove('show');
+          this.value = '';
+        }
+      });
+    }
+
+    /* ── PAGE SPECIFIC LOGIC ── */
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+
+      // Interactivity: Cursor Glow & Tilt
+      const cursor = document.createElement('div'); cursor.className = 'cursor-glow'; document.body.appendChild(cursor);
+      document.addEventListener('mousemove', e => requestAnimationFrame(() => { cursor.style.left = `${e.clientX}px`; cursor.style.top = `${e.clientY}px`; }));
+      document.addEventListener('mouseleave', () => cursor.style.opacity = '0');
+      document.addEventListener('mouseenter', () => cursor.style.opacity = '1');
+
+      document.querySelectorAll('.feat-card').forEach(card => {
+        card.addEventListener('mousemove', e => {
+          const rect = card.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top;
+          card.style.transform = `perspective(1000px) rotateX(${((y - rect.height / 2) / (rect.height / 2)) * -8}deg) rotateY(${((x - rect.width / 2) / (rect.width / 2)) * 8}deg) scale3d(1.02, 1.02, 1.02)`;
+        });
+        card.addEventListener('mouseleave', () => card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
+      });
+
+      // Reveal Animation
+      const revealObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('active'); revealObserver.unobserve(entry.target); } });
+      }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
+      document.querySelectorAll('.feat-card, .hstat, .how-step').forEach(el => { el.classList.add('reveal'); revealObserver.observe(el); });
+
+      // Load state
+      const existing = loadData();
+      if (existing) {
+        document.getElementById('status-dot').classList.add('active');
+        document.getElementById('file-name').textContent = existing.filename;
+        updateHomeStats(existing);
+      }
+
+      wireFileInput(json => {
+        updateHomeStats(json); addRecent(json); setTimeout(() => window.location.href = 'dashboard.html', 900);
+      });
+      try { renderRecent(JSON.parse(sessionStorage.getItem('ce_recent') || '[]')); } catch { }
+    });
+
+    function updateHomeStats(d) {
+      const col = k => d.columns.find(c => c.toUpperCase() === k);
+      const findTemp = () => col('TMAX') || col('T2M') || col('SKT');
+      const findPrec = () => col('PRCP') || col('TP');
+      document.getElementById('hs-rows').textContent = d.row_count;
+      document.getElementById('hs-cols').textContent = d.columns.length;
+      const tm = findTemp(); document.getElementById('hs-tmax').textContent = tm && d.stats[tm] ? d.stats[tm].mean.toFixed(1) + '°' : '—';
+      const pc = findPrec(); document.getElementById('hs-prcp').textContent = pc && d.stats[pc] ? d.stats[pc].mean.toFixed(2) + 'mm' : '—';
+    }
+    function loadAndGoDemo() {
+      saveData(makeDemoData('demo.cn')); showToast('Demo data loaded!', 'ok'); setTimeout(() => window.location.href = 'dashboard.html', 800);
+    }
+    function addRecent(json) {
+      let arr = []; try { arr = JSON.parse(sessionStorage.getItem('ce_recent') || '[]'); } catch { }
+      arr.unshift({ name: json.filename, rows: json.row_count, time: new Date().toLocaleTimeString() });
+      if (arr.length > 5) arr.pop();
+      try { sessionStorage.setItem('ce_recent', JSON.stringify(arr)); } catch { }
+      renderRecent(arr);
+    }
+    function renderRecent(arr) {
+      const list = document.getElementById('recent-list');
+      if (!arr || !arr.length) return;
+      list.innerHTML = arr.map(f => `<a class="recent-item" href="dashboard.html"><div class="recent-dot"></div><span class="recent-name">${f.name}</span><span class="recent-meta">${f.rows} rows &middot; ${f.time}</span></a>`).join('');
+    }
+  </script>
+</body>
+
+</html>

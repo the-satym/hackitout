@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - Climate Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    /* ── TOKENS & BASE ── */
+    :root {
+      --bg: #010205;
+      --panel: rgba(6, 11, 23, 0.6);
+      --border: rgba(0, 200, 255, 0.15);
+      --accent: #00c8ff;
+      --accent2: #00ff99;
+      --accent3: #ff4d6d;
+      --accent4: #ffb700;
+      --text: #d6eaf8;
+      --muted: #4a6a82;
+      --glow: rgba(0, 200, 255, 0.18);
+      --font-display: 'Syne', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+      --r: 16px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-display);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 200, 255, 0.05) 0%, transparent 70%), radial-gradient(ellipse 60% 40% at 90% 80%, rgba(0, 255, 153, 0.03) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(1, 2, 5, 0.7);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .logo em {
+      color: var(--accent2);
+      font-style: normal;
+    }
+
+    .top-nav {
+      display: flex;
+      gap: 40px;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .top-nav a {
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      transition: all 0.3s ease;
+      padding: 8px 0;
+      position: relative;
+    }
+
+    .top-nav a:hover {
+      color: var(--text);
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+    }
+
+    .top-nav a.active {
+      color: var(--accent);
+      text-shadow: 0 0 12px var(--glow);
+    }
+
+    .top-nav a.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      box-shadow: 0 -2px 10px var(--accent);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #0080aa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    /* ── DASHBOARD GRID ── */
+    main {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 24px;
+    }
+
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease-out, border-color 0.3s ease, box-shadow 0.3s ease;
+      will-change: transform;
+    }
+
+    .panel:hover {
+      border-color: rgba(0, 200, 255, 0.3);
+      box-shadow: 0 15px 40px rgba(0, 200, 255, 0.15), inset 0 0 0 1px rgba(0, 200, 255, 0.3);
+      z-index: 10;
+    }
+
+    .panel-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .kpi-row {
+      grid-column: span 12;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+    }
+
+    .kpi-card {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .kpi-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .kpi-value {
+      font-family: var(--font-mono);
+      font-size: 1.8rem;
+      font-weight: 700;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .kpi-unit {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .text-tmax {
+      color: var(--accent3);
+    }
+
+    .text-tmin {
+      color: var(--accent);
+    }
+
+    .text-prcp {
+      color: var(--accent2);
+    }
+
+    .text-wind {
+      color: var(--accent4);
+    }
+
+    .globe-panel {
+      grid-column: span 8;
+      min-height: 550px;
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .globe-header {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      z-index: 10;
+    }
+
+    #globe-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+    }
+
+    #globe-canvas {
+      width: 100% !important;
+      height: 100% !important;
+      outline: none;
+    }
+
+    .side-panel {
+      grid-column: span 4;
+      gap: 24px;
+    }
+
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .info-label {
+      color: var(--muted);
+    }
+
+    .info-val {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .cols-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .col-pill {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.65rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      background: rgba(0, 200, 255, 0.08);
+      border: 1px solid rgba(0, 200, 255, 0.2);
+      color: var(--accent);
+    }
+
+    .chart-container {
+      grid-column: span 6;
+      height: 380px;
+      position: relative;
+    }
+
+    .table-container {
+      grid-column: span 12;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .table-wrap::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .table-wrap::-webkit-scrollbar-thumb {
+      background: var(--muted);
+      border-radius: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-align: left;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: rgba(6, 11, 23, 0.95);
+      backdrop-filter: blur(4px);
+      color: var(--muted);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      z-index: 2;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      transition: background .2s;
+    }
+
+    tbody tr:hover {
+      background: rgba(0, 200, 255, 0.05);
+    }
+
+    tbody td {
+      padding: 10px 16px;
+      color: var(--text);
+    }
+
+    /* ── INTERACTIVE UPGRADES ── */
+    .cursor-glow {
+      position: fixed;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(0, 200, 255, 0.08) 0%, transparent 60%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: opacity 0.3s ease;
+      mix-blend-mode: screen;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .reveal.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1200px) {
+      .globe-panel {
+        grid-column: span 12;
+        min-height: 500px;
+      }
+
+      .side-panel {
+        grid-column: span 12;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .kpi-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .chart-container {
+        grid-column: span 12;
+      }
+
+      .top-nav {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <a class="logo" href="home.html"><svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="12" stroke="#00c8ff" stroke-width="1.5" />
+        <ellipse cx="14" cy="14" rx="5" ry="12" stroke="#00c8ff" stroke-width="1" stroke-dasharray="3 2" />
+        <line x1="2" y1="14" x2="26" y2="14" stroke="#00c8ff" stroke-width="1" />
+        <circle cx="14" cy="14" r="2.5" fill="#00ff99" />
+      </svg><span>Climate<em>Explorer</em></span></a>
+    <nav class="top-nav">
+      <a href="home.html">Home</a>
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="compare.html">Compare</a>
+      <a href="visualize.html">Visualize</a>
+    </nav>
+        <div class="hright">
+      <div class="no-login-badge"><svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <rect x="2" y="5" width="8" height="6" rx="1.5" stroke="#00ff99" stroke-width="1.2" />
+          <path d="M4 5V3.5a2 2 0 1 1 4 0V5" stroke="#00ff99" stroke-width="1.2" stroke-linecap="round" />
+        </svg>No Login Required</div>
+ 
+      
+  </header>
+
+  <main>
+    <div class="kpi-row">
+      <div class="panel kpi-card">
+        <div class="kpi-label">Avg Max Temp</div>
+        <div class="kpi-value text-tmax" id="kpi-tmax">--<span class="kpi-unit">°C</span></div>
+      </div>
+      <div class="panel kpi-card">
+        <div class="kpi-label">Avg Min Temp</div>
+        <div class="kpi-value text-tmin" id="kpi-tmin">--<span class="kpi-unit">°C</span></div>
+      </div>
+      <div class="panel kpi-card">
+        <div class="kpi-label">Avg Precipitation</div>
+        <div class="kpi-value text-prcp" id="kpi-prcp">--<span class="kpi-unit">mm</span></div>
+      </div>
+      <div class="panel kpi-card">
+        <div class="kpi-label">Avg Wind Speed</div>
+        <div class="kpi-value text-wind" id="kpi-wind">--<span class="kpi-unit">m/s</span></div>
+      </div>
+    </div>
+
+    <section class="panel globe-panel">
+      <div class="panel-title globe-header"><span>🌍</span> Interactive Globe</div>
+      <div id="globe-container"><canvas id="globe-canvas"></canvas></div>
+    </section>
+
+    <aside class="panel side-panel">
+      <div class="panel-title"><span>📊</span> Dataset Details</div>
+      <div class="info-list" style="margin-bottom: 24px;">
+        <div class="info-row"><span class="info-label">Source File</span><span class="info-val"
+            id="info-fname">--</span></div>
+        <div class="info-row"><span class="info-label">Total Records</span><span class="info-val"
+            id="info-rows">--</span></div>
+        <div class="info-row"><span class="info-label">Active Columns</span><span class="info-val"
+            id="info-cols">--</span></div>
+        <div class="info-row"><span class="info-label">Status</span><span class="info-val"
+            style="color:var(--accent2)">Cleaned & Parsed</span></div>
+      </div>
+      <div class="panel-title"><span>📋</span> Available Dimensions</div>
+      <div class="cols-wrap" id="cols-wrap"><span style="color:var(--muted);font-size:0.72rem">Loading...</span></div>
+    </aside>
+
+    <section class="panel chart-container" id="chart-panel-1">
+      <div class="panel-title"><span>🌡</span> Temperature Trends</div><canvas id="chart-1"></canvas>
+    </section>
+    <section class="panel chart-container" id="chart-panel-2">
+      <div class="panel-title"><span>🌧</span> Precipitation Elements</div><canvas id="chart-2"></canvas>
+    </section>
+    <section class="panel table-container">
+      <div class="panel-title"><span>🗃</span> Raw Data View (First 100 rows)</div>
+      <div class="table-wrap">
+        <table id="data-table">
+          <thead id="table-head"></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /* ── BASE & SHARED LOGIC ── */
+    function loadData() { try { return JSON.parse(sessionStorage.getItem('climate_data')); } catch { return null; } }
+    function makeDemoData(filename = 'demo.cn', count = 120) {
+      const columns = ['STATION', 'DATE', 'LAT', 'LON', 'TMAX', 'TMIN', 'PRCP', 'SNOW', 'AWND', 'HUM', 'PRES'];
+      const records = Array.from({ length: count }, (_, i) => ({
+        STATION: 'DEMO001', DATE: `2024-01-${(i % 31) + 1}`.padStart(2, '0'), LAT: 35 + (Math.random() - 0.5) * 40, LON: -100 + (Math.random() - 0.5) * 80,
+        TMAX: +(18 + 12 * Math.sin(i / 12) + (Math.random() - 0.5) * 4).toFixed(1), TMIN: +(6 + 8 * Math.sin(i / 12) + (Math.random() - 0.5) * 3).toFixed(1),
+        PRCP: +(Math.random() < 0.3 ? Math.random() * 25 : 0).toFixed(1), SNOW: +(Math.random() < 0.1 ? Math.random() * 10 : 0).toFixed(1),
+        AWND: +(2 + Math.random() * 8).toFixed(1), HUM: +(40 + Math.random() * 40).toFixed(1), PRES: +(1010 + (Math.random() - 0.5) * 20).toFixed(1)
+      }));
+      const stats = {};
+      ['TMAX', 'TMIN', 'PRCP', 'SNOW', 'AWND', 'HUM', 'PRES'].forEach(k => { const vals = records.map(r => r[k]); stats[k] = { min: Math.min(...vals), max: Math.max(...vals), mean: vals.reduce((a, b) => a + b, 0) / vals.length, count: vals.length }; });
+      return { columns, records, stats, row_count: records.length, parse_errors: [], filename };
+    }
+
+    /* ── GLOBE & CHARTS ── */
+    document.addEventListener('DOMContentLoaded', () => {
+      // Global Interactive Upgrades
+      const cursor = document.createElement('div'); cursor.className = 'cursor-glow'; document.body.appendChild(cursor);
+      document.addEventListener('mousemove', e => requestAnimationFrame(() => { cursor.style.left = `${e.clientX}px`; cursor.style.top = `${e.clientY}px`; }));
+      document.addEventListener('mouseleave', () => cursor.style.opacity = '0'); document.addEventListener('mouseenter', () => cursor.style.opacity = '1');
+
+      const revealObserver = new IntersectionObserver(entries => { entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('active'); revealObserver.unobserve(entry.target); } }); }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
+      document.querySelectorAll('.panel').forEach(card => {
+        card.classList.add('reveal'); revealObserver.observe(card);
+        if (card.classList.contains('kpi-card')) {
+          card.addEventListener('mousemove', e => { const rect = card.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top; card.style.transform = `perspective(1000px) rotateX(${((y - rect.height / 2) / (rect.height / 2)) * -8}deg) rotateY(${((x - rect.width / 2) / (rect.width / 2)) * 8}deg) scale3d(1.02, 1.02, 1.02)`; });
+          card.addEventListener('mouseleave', () => card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
+        }
+      });
+
+      if (typeof Chart !== 'undefined') {
+        Chart.defaults.animation.duration = 1200; Chart.defaults.animation.easing = 'easeOutElastic';
+        Chart.defaults.elements.line.borderWidth = 3; Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(6, 11, 23, 0.95)';
+        Chart.defaults.plugins.tooltip.titleColor = '#00c8ff'; Chart.defaults.plugins.tooltip.bodyColor = '#d6eaf8';
+        Chart.defaults.plugins.tooltip.borderColor = 'rgba(0, 200, 255, 0.3)'; Chart.defaults.plugins.tooltip.borderWidth = 1;
+        Chart.defaults.plugins.tooltip.padding = 14; Chart.defaults.plugins.tooltip.cornerRadius = 10;
+      }
+
+      // Globe Setup
+      const canvas = document.getElementById('globe-canvas'), container = document.getElementById('globe-container');
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100); camera.position.z = 2.8;
+      const uniforms = { uTime: { value: 0 }, uDataLoaded: { value: 1.0 }, uColor1: { value: new THREE.Color('#001a2e') }, uColor2: { value: new THREE.Color('#003a5c') }, uGlowColor: { value: new THREE.Color('#00c8ff') } };
+
+      const mat = new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader: `varying vec2 vUv; varying vec3 vNormal; void main(){ vUv=uv; vNormal=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+        fragmentShader: `uniform float uTime; uniform float uDataLoaded; uniform vec3 uColor1; uniform vec3 uColor2; uniform vec3 uGlowColor; varying vec2 vUv; varying vec3 vNormal; float grid(vec2 uv, float freq){ vec2 g=abs(fract(uv*freq)-0.5); return 1.0-smoothstep(0.0,0.04,min(g.x,g.y)); } void main(){ vec3 base=mix(uColor1,uColor2,vUv.y); float lat=grid(vUv,12.0)*0.35; float lon=grid(vec2(vUv.x+uTime*0.01,vUv.y),24.0)*0.25; float gridLine=max(lat,lon); float rim=pow(1.0-dot(vNormal,vec3(0.0,0.0,1.0)),2.0); float pulse=0.5+0.5*sin(uTime*1.2+vUv.y*8.0); vec3 col=base+gridLine*uGlowColor*(0.5+uDataLoaded*0.5)+rim*uGlowColor*(0.3+uDataLoaded*0.4)+uDataLoaded*pulse*0.3*uGlowColor; gl_FragColor=vec4(col,0.92); }`,
+        transparent: true,
+      });
+      const globe = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64), mat); scene.add(globe);
+      const atmMat = new THREE.ShaderMaterial({ uniforms: { uGlow: { value: new THREE.Color('#00c8ff') } }, vertexShader: `varying vec3 vNormal; void main(){ vNormal=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`, fragmentShader: `uniform vec3 uGlow; varying vec3 vNormal; void main(){ float rim=pow(1.0-dot(vNormal,vec3(0,0,1)),3.5); gl_FragColor=vec4(uGlow,rim*0.5); }`, transparent: true, side: THREE.FrontSide, blending: THREE.AdditiveBlending, depthWrite: false });
+      scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.06, 32, 32), atmMat));
+
+      function resizeGlobe() { const w = container.clientWidth, h = container.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+      window.addEventListener('resize', resizeGlobe);
+      let isDragging = false, prevMouse = { x: 0, y: 0 };
+      canvas.addEventListener('mousedown', e => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; });
+      window.addEventListener('mouseup', () => isDragging = false);
+      window.addEventListener('mousemove', e => { if (!isDragging) return; globe.rotation.y += (e.clientX - prevMouse.x) * 0.005; globe.rotation.x += (e.clientY - prevMouse.y) * 0.004; prevMouse = { x: e.clientX, y: e.clientY }; });
+      function animate() { requestAnimationFrame(animate); uniforms.uTime.value += 0.016; globe.rotation.y += 0.0015; renderer.render(scene, camera); }
+      resizeGlobe(); animate();
+
+      // Load Data
+      let data = loadData();
+      if (!data) data = makeDemoData();
+      const { stats, records, columns, row_count, filename } = data;
+
+      document.getElementById('head-fname').textContent = filename;
+      document.getElementById('info-fname').textContent = filename;
+      document.getElementById('info-rows').textContent = row_count.toLocaleString();
+      document.getElementById('info-cols').textContent = columns.length;
+      document.getElementById('cols-wrap').innerHTML = columns.map(c => `<span class="col-pill">${c}</span>`).join('');
+
+      const cget = k => columns.find(c => c.toUpperCase() === k);
+      // Smart column matching — try NOAA names first, then CDS ERA5 names
+      const tmaxK = cget('TMAX') || cget('T2M') || cget('SKT');
+      const tminK = cget('TMIN') || cget('DEWP') || cget('D2M');
+      const prcpK = cget('PRCP') || cget('TP');
+      const windK = cget('AWND') || cget('U10') || cget('GUST');
+
+      document.getElementById('kpi-tmax').innerHTML = `${tmaxK && stats[tmaxK] ? stats[tmaxK].mean.toFixed(1) : '--'} <span class="kpi-unit">°C</span>`;
+      document.getElementById('kpi-tmin').innerHTML = `${tminK && stats[tminK] ? stats[tminK].mean.toFixed(1) : '--'} <span class="kpi-unit">°C</span>`;
+      document.getElementById('kpi-prcp').innerHTML = `${prcpK && stats[prcpK] ? stats[prcpK].mean.toFixed(1) : '--'} <span class="kpi-unit">mm</span>`;
+      document.getElementById('kpi-wind').innerHTML = `${windK && stats[windK] ? stats[windK].mean.toFixed(1) : '--'} <span class="kpi-unit">m/s</span>`;
+
+      // Plot Points
+      const latK = cget('LAT'), lonK = cget('LON');
+      if (latK && lonK) {
+        const pos = [], cols = []; const c = new THREE.Color();
+        records.slice(0, 300).forEach(r => {
+          if (r[latK] == null || r[lonK] == null) return;
+          const phi = (90 - r[latK]) * Math.PI / 180, theta = (r[lonK] + 180) * Math.PI / 180;
+          pos.push(1.02 * Math.sin(phi) * Math.cos(theta), 1.02 * Math.cos(phi), 1.02 * Math.sin(phi) * Math.sin(theta));
+          c.setHSL(Math.random() * 0.3 + 0.5, 1, 0.6); cols.push(c.r, c.g, c.b);
+        });
+        const pcGeo = new THREE.BufferGeometry(); pcGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); pcGeo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+        scene.add(new THREE.Points(pcGeo, new THREE.PointsMaterial({ size: 0.03, vertexColors: true, sizeAttenuation: true })));
+      }
+
+      // Charts — flexible: use available columns, fallback to any numeric columns
+      const chartOpts = { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#4a6a82', font: { size: 10, family: 'Space Mono' } } } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#4a6a82', font: { size: 9 }, maxTicksLimit: 12 } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#4a6a82', font: { size: 9 } } } } };
+      const numCols = columns.filter(c => stats[c]);
+      const chartLabels = records.slice(0, 50).map((r, i) => r.DATE || r[cget('DATE')] || `Pt ${i + 1}`);
+
+      // Chart 1: Temperature trends (or first two numeric cols)
+      const c1ds = [];
+      if (tmaxK) c1ds.push({ label: tmaxK, data: records.slice(0, 50).map(r => r[tmaxK]), borderColor: '#ff4d6d', tension: 0.4, borderWidth: 2, pointRadius: 0 });
+      if (tminK) c1ds.push({ label: tminK, data: records.slice(0, 50).map(r => r[tminK]), borderColor: '#00c8ff', tension: 0.4, borderWidth: 2, pointRadius: 0 });
+      if (!c1ds.length) {
+        if (numCols[0]) c1ds.push({ label: numCols[0], data: records.slice(0, 50).map(r => r[numCols[0]]), borderColor: '#ff4d6d', tension: 0.4, borderWidth: 2, pointRadius: 0 });
+        if (numCols[1]) c1ds.push({ label: numCols[1], data: records.slice(0, 50).map(r => r[numCols[1]]), borderColor: '#00c8ff', tension: 0.4, borderWidth: 2, pointRadius: 0 });
+      }
+      new Chart(document.getElementById('chart-1'), { type: 'line', data: { labels: chartLabels, datasets: c1ds }, options: chartOpts });
+
+      // Chart 2: Precipitation (or third numeric col)
+      const c2ds = [];
+      if (prcpK) c2ds.push({ label: prcpK, data: records.slice(0, 50).map(r => r[prcpK]), backgroundColor: '#00ff99', borderRadius: 2 });
+      if (!c2ds.length) {
+        const fallback = numCols[2] || numCols[0];
+        if (fallback) c2ds.push({ label: fallback, data: records.slice(0, 50).map(r => r[fallback]), backgroundColor: '#00ff99', borderRadius: 2 });
+      }
+      new Chart(document.getElementById('chart-2'), { type: 'bar', data: { labels: chartLabels, datasets: c2ds }, options: chartOpts });
+
+      // Table
+      document.getElementById('table-head').innerHTML = '<tr>' + columns.map(c => `<th>${c}</th>`).join('') + '</tr>';
+      document.getElementById('table-body').innerHTML = records.slice(0, 100).map(r => '<tr>' + columns.map(c => `<td>${r[c] ?? '-'}</td>`).join('') + '</tr>').join('');
+    });
+  </script>
+</body>
+
+</html>
